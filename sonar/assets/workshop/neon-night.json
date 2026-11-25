@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "name": "Неоновая ночь",
+  "description": "Тёмная тема, неоновый фон плеера, караоке розовым по голубому.",
+  "settings": {
+    "theme": "standard",
+    "accent": "#ff2bd6",
+    "flow_source": "neon",
+    "flow_blur": 60,
+    "flow_speed": 60,
+    "vinyl": false,
+    "lyrics_style": "karaoke",
+    "lyrics_color": "#9ef6ff",
+    "lyrics_sung": "#ff2bd6",
+    "lyrics_halo": true,
+    "lyrics_align": "center",
+    "lyrics_size": 34,
+    "lyrics_bold": true
+  }
+}

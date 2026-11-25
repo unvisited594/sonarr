@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "name": "Тёплый винил",
+  "description": "Закатный фон, крутится пластинка, текст как в Dotify с золотом.",
+  "settings": {
+    "theme": "standard",
+    "accent": "#ffc371",
+    "flow_source": "sunset",
+    "flow_blur": 70,
+    "flow_speed": 35,
+    "vinyl": true,
+    "lyrics_style": "dotify",
+    "lyrics_color": "#ffffff",
+    "lyrics_sung": "#ffc93c",
+    "lyrics_halo": true,
+    "lyrics_align": "left",
+    "lyrics_size": 32,
+    "lyrics_bold": true
+  }
+}

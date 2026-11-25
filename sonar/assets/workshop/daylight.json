@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "name": "Светлый день",
+  "description": "Светлая тема и огненный фон большого плеера.",
+  "settings": {
+    "theme": "light",
+    "accent": "#ff7a00",
+    "flow_source": "fire",
+    "flow_blur": 55,
+    "flow_speed": 50,
+    "vinyl": true,
+    "lyrics_style": "karaoke",
+    "lyrics_color": "#ffffff",
+    "lyrics_sung": "#000000",
+    "lyrics_halo": true,
+    "lyrics_align": "center",
+    "lyrics_size": 30,
+    "lyrics_bold": true
+  }
+}

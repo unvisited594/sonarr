@@ -1,0 +1,21 @@
+{
+  "format": 1,
+  "name": "Северное сияние",
+  "description": "Зелёно-фиолетовое сияние и снег.",
+  "settings": {
+    "theme": "standard",
+    "accent": "#00ff9c",
+    "flow_source": "aurora",
+    "flow_blur": 65,
+    "flow_speed": 45,
+    "snow": true,
+    "vinyl": false,
+    "lyrics_style": "karaoke",
+    "lyrics_color": "#ffffff",
+    "lyrics_sung": "#00ff9c",
+    "lyrics_halo": true,
+    "lyrics_align": "center",
+    "lyrics_size": 32,
+    "lyrics_bold": true
+  }
+}

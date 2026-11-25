@@ -1,0 +1,20 @@
+{
+  "format": 1,
+  "name": "Океан",
+  "description": "Спокойные волны синего и бирюзового, мягкий текст.",
+  "settings": {
+    "theme": "standard",
+    "accent": "#00c6ff",
+    "flow_source": "ocean",
+    "flow_blur": 75,
+    "flow_speed": 25,
+    "vinyl": false,
+    "lyrics_style": "dotify",
+    "lyrics_color": "#bfe9ff",
+    "lyrics_sung": "#ffffff",
+    "lyrics_halo": false,
+    "lyrics_align": "center",
+    "lyrics_size": 30,
+    "lyrics_bold": true
+  }
+}
