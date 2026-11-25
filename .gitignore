@@ -1,0 +1,18 @@
+# сборка
+build/
+dist/
+__pycache__/
+*.pyc
+# данные и скачанное
+data/
+downloads/
+# пароль общего сервера Navidrome — только локально или в секретах GitHub
+shared_navidrome.json
+sonar/assets/shared_navidrome.json
+.venv/
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+*.jks

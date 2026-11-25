@@ -1,0 +1,10 @@
+PyQt6>=6.5
+PyQt6-WebEngine>=6.5
+requests>=2.31
+ytmusicapi>=1.10
+yt-dlp[default]>=2025.11.12
+yandex-music>=3.0
+numpy>=1.26
+qrcode>=7.4
+PySocks>=1.7
+jeepney>=0.8; sys_platform == "linux"
