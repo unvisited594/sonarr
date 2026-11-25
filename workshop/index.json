@@ -1,0 +1,8 @@
+{
+  "about": "Каталог Мастерской Sonar. Sonar читает этот файл из репозитория на GitHub. Чтобы добавить набор: положите его файл (.zip или .sonarpack) в эту папку и допишите запись в packs.",
+  "packs": [
+    {"id": "example", "name": "Пример набора", "author": "Sonar", "description": "Пример записи каталога: набор прямо в JSON, без файла.",
+     "settings": {"theme": "standard", "accent": "#7c4dff", "flow_source": "custom", "flow_custom": ["#7c4dff", "#00e5ff", "#ff2bd6"],
+                  "lyrics_style": "karaoke", "lyrics_color": "#ffffff", "lyrics_sung": "#7c4dff"}}
+  ]
+}
