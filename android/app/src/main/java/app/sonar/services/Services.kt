@@ -30,7 +30,10 @@ object Services {
             return null
         }
 
-    fun all(): List<MusicService> = listOfNotNull(navidrome, youtube, soundcloud)
+    val yandex: YandexMusic? get() = AccountKeys.get(AccountKeys.YANDEX)?.let { YandexMusic(it) }
+    val deezer: DeezerProfile? get() = AccountKeys.get(AccountKeys.DEEZER)?.let { DeezerProfile(it) }
+
+    fun all(): List<MusicService> = listOfNotNull(navidrome, youtube, soundcloud, yandex, deezer)
 
     fun get(id: String): MusicService? = all().firstOrNull { it.id == id }
 }

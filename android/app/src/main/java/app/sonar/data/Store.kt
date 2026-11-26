@@ -17,6 +17,7 @@ data class Settings(
     val navidrome: NavidromeLogin? = null,
     val autoUpdate: Boolean = true,
     val skipVersion: String = "",
+    val accounts: Map<String, String> = emptyMap(),   // токены и cookie входа в сервисы
 )
 
 /** Лайки, история и настройки — JSON-файлы в памяти приложения. */

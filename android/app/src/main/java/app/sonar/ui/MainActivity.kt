@@ -15,6 +15,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,7 +86,12 @@ import app.sonar.data.Store
 import app.sonar.model.Track
 import app.sonar.player.Hub
 import app.sonar.player.PlaybackService
+import app.sonar.services.AccountKeys
+import app.sonar.services.DeezerProfile
 import app.sonar.services.MusicService
+import app.sonar.services.SoundCloudAccount
+import app.sonar.services.YandexMusic
+import app.sonar.services.YouTubeAccount
 import app.sonar.services.Navidrome
 import app.sonar.services.Services
 import app.sonar.update.Release
@@ -122,6 +129,7 @@ fun SonarApp() {
     var full by remember { mutableStateOf(false) }
     var lookOpen by remember { mutableStateOf(false) }
     var release by remember { mutableStateOf<Release?>(null) }
+    var login by remember { mutableStateOf<Pair<WebLoginSpec, String>?>(null) }
     val state by Hub.state.collectAsState()
     val settings by Store.settings.collectAsState()
 
@@ -140,7 +148,8 @@ fun SonarApp() {
                     0 -> HomeScreen()
                     1 -> SearchScreen()
                     2 -> LibraryScreen()
-                    else -> SettingsScreen(onRelease = { release = it }, onLook = { lookOpen = true })
+                    else -> SettingsScreen(onRelease = { release = it }, onLook = { lookOpen = true },
+                        onLogin = { spec, key -> login = spec to key })
                 }
             }
             if (state.current != null) MiniPlayer(onOpen = { full = true })
@@ -151,6 +160,9 @@ fun SonarApp() {
             FullPlayer(onClose = { full = false })
         }
         if (lookOpen) LookScreen(onClose = { lookOpen = false })
+        login?.let { (spec, key) ->
+            WebLogin(spec, onResult = { value -> AccountKeys.set(key, value); login = null }, onClose = { login = null })
+        }
     }
     release?.let { r -> UpdateDialog(r, onDismiss = { release = null }) }
 }
@@ -192,6 +204,7 @@ fun buildWave(likes: List<Track>): List<Track> {
     val out = mutableListOf<Track>()
     out += likes.shuffled().take(25)
     Services.navidrome?.let { nd -> runCatching { out += nd.wave().take(25) } }
+    Services.yandex?.let { ya -> runCatching { out += ya.wave().take(25) } }
     if (out.isEmpty()) runCatching { out += Services.youtube.wave().take(30) }
     return out.distinctBy { it.key }.shuffled()
 }
@@ -205,7 +218,9 @@ fun HomeScreen() {
     var waveError by remember { mutableStateOf<String?>(null) }
     var navidrome by remember { mutableStateOf<List<Track>>(emptyList()) }
     var popular by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var yaWave by remember { mutableStateOf<List<Track>>(emptyList()) }
     LaunchedEffect(Unit) {
+        yaWave = runCatching { withContext(Dispatchers.IO) { Services.yandex?.wave()?.take(20) ?: emptyList() } }.getOrDefault(emptyList())
         navidrome = runCatching { withContext(Dispatchers.IO) { Services.navidrome?.wave()?.take(20) ?: emptyList() } }.getOrDefault(emptyList())
         popular = runCatching { withContext(Dispatchers.IO) { Services.youtube.wave().take(20) } }.getOrDefault(emptyList())
     }
@@ -236,6 +251,10 @@ fun HomeScreen() {
                 }
             }
             waveError?.let { Text(it, color = SonarColors.like, modifier = Modifier.padding(horizontal = 20.dp)) }
+        }
+        if (yaWave.isNotEmpty()) {
+            item { SectionHead("Моя волна Яндекса", "Играть") { Hub.playQueue(yaWave, 0) } }
+            item { TrackShelf(yaWave) }
         }
         if (history.isNotEmpty()) {
             item { SectionHead("Недавно") }
@@ -336,7 +355,25 @@ fun LibraryScreen() {
     val likes by Store.likes.collectAsState()
     val history by Store.history.collectAsState()
     val state by Hub.state.collectAsState()
-    val list = if (tab == 0) likes else history
+    val settings by Store.settings.collectAsState()
+    // вкладки: свои лайки, история и лайки каждого подключённого аккаунта
+    val sources = buildList<Pair<String, (() -> List<Track>)?>> {
+        add("Лайки" to null); add("История" to null)
+        AccountKeys.get(AccountKeys.YANDEX)?.let { t -> add("Яндекс" to { YandexMusic(t).likes() }) }
+        AccountKeys.get(AccountKeys.SOUNDCLOUD)?.let { t -> add("SoundCloud" to { SoundCloudAccount(t).likes() }) }
+        AccountKeys.get(AccountKeys.YOUTUBE)?.let { c -> add("YouTube Music" to { YouTubeAccount(c).likes() }) }
+        AccountKeys.get(AccountKeys.DEEZER)?.let { p -> add("Deezer" to { DeezerProfile(p).likes() }) }
+    }
+    var remote by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var remoteStatus by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(tab, settings.accounts) {
+        val loader = sources.getOrNull(tab)?.second ?: return@LaunchedEffect
+        remote = emptyList(); remoteStatus = "Загружаю…"
+        val r = runCatching { withContext(Dispatchers.IO) { loader() } }
+        remote = r.getOrDefault(emptyList())
+        remoteStatus = r.exceptionOrNull()?.let { "Не получилось: ${it.message}" } ?: if (remote.isEmpty()) "Тут пока пусто" else null
+    }
+    val list = when (tab) { 0 -> likes; 1 -> history; else -> remote }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 20.dp)) {
         item { PageTitle("Медиатека") }
         item {
@@ -349,7 +386,8 @@ fun LibraryScreen() {
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(if (tab == 0) "Мои лайки" else "Прослушанное", fontSize = 22.sp, fontWeight = FontWeight.Black, color = SonarColors.text)
+                    Text(when (tab) { 0 -> "Мои лайки"; 1 -> "Прослушанное"; else -> "Лайки: ${sources.getOrNull(tab)?.first ?: ""}" },
+                        fontSize = 22.sp, fontWeight = FontWeight.Black, color = SonarColors.text)
                     Text("${list.size} треков", color = SonarColors.muted)
                 }
                 if (list.isNotEmpty()) Box(Modifier.size(54.dp).clip(CircleShape).background(SonarColors.accent)
@@ -359,13 +397,14 @@ fun LibraryScreen() {
             }
         }
         item {
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Pill("Лайки", tab == 0) { tab = 0 }
-                Pill("История", tab == 1) { tab = 1 }
+            Row(Modifier.padding(horizontal = 16.dp).horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                sources.forEachIndexed { i, (title, _) -> Pill(title, tab == i) { tab = i } }
             }
             Spacer(Modifier.height(8.dp))
+            if (tab >= 2) remoteStatus?.let { Text(it, color = SonarColors.muted, modifier = Modifier.padding(horizontal = 20.dp)) }
         }
-        if (list.isEmpty()) item {
+        if (list.isEmpty() && tab < 2) item {
             Text(if (tab == 0) "Здесь появятся треки, которым вы поставите ♥" else "Здесь будет то, что вы слушали",
                 color = SonarColors.muted, modifier = Modifier.padding(20.dp))
         }
@@ -384,7 +423,7 @@ private fun CardTitle(t: String) = Text(t, fontSize = 18.sp, fontWeight = FontWe
 private fun Muted(t: String) = Text(t, color = SonarColors.muted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
 
 @Composable
-fun SettingsScreen(onRelease: (Release) -> Unit, onLook: () -> Unit) {
+fun SettingsScreen(onRelease: (Release) -> Unit, onLook: () -> Unit, onLogin: (WebLoginSpec, String) -> Unit) {
     val settings by Store.settings.collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -410,6 +449,7 @@ fun SettingsScreen(onRelease: (Release) -> Unit, onLook: () -> Unit) {
                 }
             }
         }
+        item { AccountsCard(onLogin) }
         item {
             Card {
                 CardTitle("Navidrome")
@@ -483,6 +523,50 @@ fun SettingsScreen(onRelease: (Release) -> Unit, onLook: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+/** Аккаунты, как на ПК: вход во встроенном браузере (Яндекс, SoundCloud, YouTube Music) или ссылка (Deezer). */
+@Composable
+fun AccountsCard(onLogin: (WebLoginSpec, String) -> Unit) {
+    val settings by Store.settings.collectAsState()
+    var deezer by remember { mutableStateOf(settings.accounts[AccountKeys.DEEZER] ?: "") }
+    Card {
+        CardTitle("Аккаунты")
+        Muted("Войдите, чтобы видеть свои лайки и волну. Логины хранятся только на этом телефоне.")
+        val rows = listOf(
+            Triple("Яндекс Музыка", AccountKeys.YANDEX,
+                WebLoginSpec("Вход в Яндекс", YandexMusic.LOGIN_URL, redirectPrefix = YandexMusic.REDIRECT_PREFIX)),
+            Triple("SoundCloud", AccountKeys.SOUNDCLOUD,
+                WebLoginSpec("Вход в SoundCloud", SoundCloudAccount.LOGIN_URL, cookieHost = "soundcloud.com",
+                    cookieName = "oauth_token", desktopAgent = true)),
+            Triple("YouTube Music", AccountKeys.YOUTUBE,
+                WebLoginSpec("Вход в YouTube Music", YouTubeAccount.LOGIN_URL, cookieHost = "music.youtube.com",
+                    cookieName = "__Secure-3PAPISID", wholeCookie = true, desktopAgent = true)),
+        )
+        for ((title, key, spec) in rows) {
+            val on = !settings.accounts[key].isNullOrBlank()
+            Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(title, fontWeight = FontWeight.SemiBold, color = SonarColors.text)
+                    Text(if (on) "Подключено" else "Не подключено", color = if (on) SonarColors.accent else SonarColors.muted, fontSize = 13.sp)
+                }
+                if (on) OutlinedButton(onClick = { AccountKeys.set(key, null) }) { Text("Выйти") }
+                else Button(onClick = { onLogin(spec, key) }) { Text("Войти") }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Text("Deezer", fontWeight = FontWeight.SemiBold, color = SonarColors.text)
+        Muted("Вход не нужен: ссылка на ваш открытый профиль (deezer.com/ru/profile/…). Треки играют через YouTube.")
+        OutlinedTextField(deezer, { deezer = it }, singleLine = true, label = { Text("Ссылка на профиль") },
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+            Button(onClick = { AccountKeys.set(AccountKeys.DEEZER, deezer.trim()) }, enabled = deezer.isNotBlank()) { Text("Сохранить") }
+            if (!settings.accounts[AccountKeys.DEEZER].isNullOrBlank()) {
+                OutlinedButton(onClick = { AccountKeys.set(AccountKeys.DEEZER, null); deezer = "" }) { Text("Убрать") }
+            }
+        }
+        Muted("Spotify пока только на ПК: ему нужно своё приложение разработчика.")
     }
 }
 
